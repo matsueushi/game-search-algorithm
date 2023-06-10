@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  rust:
+    container_name: "game-search-algorithm"
+    build: ./
+    volumes:
+      - ./:/game-search-algorithm:delegated
+    tty: true
+    environment:
+      CARGO_BUILD_TARGET_DIR: /target
