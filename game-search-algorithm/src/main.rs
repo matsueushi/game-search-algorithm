@@ -89,38 +89,31 @@ impl MazeState {
         actions
     }
 
-    fn action(&self) -> usize {
+    #[allow(dead_code)]
+    fn random_action(&self) -> usize {
         let legal_actions = self.legal_actions();
         let mut rng = ChaCha8Rng::seed_from_u64(0);
         legal_actions[rng.gen_range(0..legal_actions.len())]
     }
 
-    // fn evaluate_score(&mut self) {
-    //     self.evaluated_score = self.game_score;
-    // }
+    fn evaluate_score(&mut self) {
+        self.evaluated_score = self.game_score;
+    }
 
-    // fn greedy_action(&self) -> usize {
-    //     let legal_actions = self.legal_actions();
-    //     let mut best_score = -INF;
-    //     let mut best_action = None;
-    //     for action in legal_actions {
-    //         let mut now_state = self.clone();
-    //         now_state.advance(action);
-    //         now_state.evaluate_score();
-    //         if now_state.evaluated_score > best_score {
-    //             best_score = now_state.evaluated_score;
-    //             best_action = Some(action);
-    //         }
-    //     }
-    //     best_action.unwrap()
-    // }
-
-    fn play_game(seed: u64) {
-        let mut state = Self::from_seed(seed);
-        while !state.is_done() {
-            state.advance(state.action()); // ランダム行動
-            println!("{}", state);
+    fn greedy_action(&self) -> usize {
+        let legal_actions = self.legal_actions();
+        let mut best_score = -INF;
+        let mut best_action = None;
+        for action in legal_actions {
+            let mut now_state = self.clone();
+            now_state.advance(action);
+            now_state.evaluate_score();
+            if now_state.evaluated_score > best_score {
+                best_score = now_state.evaluated_score;
+                best_action = Some(action);
+            }
         }
+        best_action.unwrap()
     }
 }
 
@@ -146,6 +139,31 @@ impl Display for MazeState {
     }
 }
 
+#[allow(dead_code)]
+fn play_game(seed: u64) {
+    let mut state = MazeState::from_seed(seed);
+    while !state.is_done() {
+        // state.advance(state.random_action()); // ランダム行動
+        state.advance(state.greedy_action()); // 貪欲法
+        println!("{}", state);
+    }
+}
+
+fn test_ai_score(game_number: usize) -> f64 {
+    let mut total_score = 0;
+    for i in 0..game_number {
+        let mut state = MazeState::from_seed(i as u64);
+        while !state.is_done() {
+            // state.advance(state.random_action()); // ランダム行動
+            state.advance(state.greedy_action()); // 貪欲法
+        }
+        total_score += state.game_score;
+    }
+    total_score as f64 / game_number as f64
+}
+
 fn main() {
-    MazeState::play_game(121321);
+    // play_game(121321);
+    let score = test_ai_score(100);
+    println!("{}", score);
 }
