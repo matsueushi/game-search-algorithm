@@ -2,13 +2,16 @@ use rand::prelude::*;
 use rand_chacha::ChaCha8Rng;
 use std::fmt::{self, Display, Formatter};
 
+type ScoreType = i64;
+const INF: ScoreType = ScoreType::MAX;
+
 const H: usize = 3;
 const W: usize = 4;
 const END_TURN: usize = 4;
 const DX: [i64; 4] = [1, -1, 0, 0];
 const DY: [i64; 4] = [0, 0, 1, -1];
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct Coord {
     y: i64,
     x: i64,
@@ -20,12 +23,13 @@ impl Default for Coord {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct MazeState {
-    points: Vec<Vec<usize>>,
+    points: Vec<Vec<ScoreType>>,
     turn: usize,
     character: Coord,
-    game_score: usize,
+    game_score: ScoreType,
+    evaluated_score: ScoreType,
 }
 
 impl MazeState {
@@ -54,15 +58,16 @@ impl MazeState {
                 x: x as i64,
             },
             game_score: 0,
+            evaluated_score: 0,
         }
     }
 
-    fn is_done(self) -> bool {
+    fn is_done(&self) -> bool {
         self.turn == END_TURN
     }
 
-    fn advance(mut self, action: usize) {
-        self.character.y += DX[action];
+    fn advance(&mut self, action: usize) {
+        self.character.y += DY[action];
         self.character.x += DX[action];
         let point = &mut self.points[self.character.y as usize][self.character.x as usize];
         if *point > 0 {
@@ -72,7 +77,7 @@ impl MazeState {
         self.turn += 1;
     }
 
-    fn legal_actions(self) -> Vec<usize> {
+    fn legal_actions(&self) -> Vec<usize> {
         let mut actions = Vec::new();
         for action in 0..4 {
             let y = self.character.y + DY[action];
@@ -82,6 +87,40 @@ impl MazeState {
             }
         }
         actions
+    }
+
+    fn action(&self) -> usize {
+        let legal_actions = self.legal_actions();
+        let mut rng = ChaCha8Rng::seed_from_u64(0);
+        legal_actions[rng.gen_range(0..legal_actions.len())]
+    }
+
+    // fn evaluate_score(&mut self) {
+    //     self.evaluated_score = self.game_score;
+    // }
+
+    // fn greedy_action(&self) -> usize {
+    //     let legal_actions = self.legal_actions();
+    //     let mut best_score = -INF;
+    //     let mut best_action = None;
+    //     for action in legal_actions {
+    //         let mut now_state = self.clone();
+    //         now_state.advance(action);
+    //         now_state.evaluate_score();
+    //         if now_state.evaluated_score > best_score {
+    //             best_score = now_state.evaluated_score;
+    //             best_action = Some(action);
+    //         }
+    //     }
+    //     best_action.unwrap()
+    // }
+
+    fn play_game(seed: u64) {
+        let mut state = Self::from_seed(seed);
+        while !state.is_done() {
+            state.advance(state.action()); // ランダム行動
+            println!("{}", state);
+        }
     }
 }
 
@@ -108,6 +147,5 @@ impl Display for MazeState {
 }
 
 fn main() {
-    let state = MazeState::from_seed(2);
-    println!("{}", state);
+    MazeState::play_game(121321);
 }
