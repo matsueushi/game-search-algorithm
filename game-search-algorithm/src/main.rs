@@ -1,6 +1,9 @@
 use rand::prelude::*;
 use rand_chacha::ChaCha8Rng;
-use std::fmt::{self, Display, Formatter};
+use std::{
+    collections::BinaryHeap,
+    fmt::{self, Display, Formatter},
+};
 
 type ScoreType = i64;
 const INF: ScoreType = ScoreType::MAX;
@@ -11,7 +14,7 @@ const END_TURN: usize = 4;
 const DX: [i64; 4] = [1, -1, 0, 0];
 const DY: [i64; 4] = [0, 0, 1, -1];
 
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 struct Coord {
     y: i64,
     x: i64,
@@ -23,13 +26,14 @@ impl Default for Coord {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 struct MazeState {
     points: Vec<Vec<ScoreType>>,
     turn: usize,
     character: Coord,
     game_score: ScoreType,
     evaluated_score: ScoreType,
+    first_action: Option<usize>,
 }
 
 impl MazeState {
@@ -59,6 +63,7 @@ impl MazeState {
             },
             game_score: 0,
             evaluated_score: 0,
+            first_action: None,
         }
     }
 
@@ -115,6 +120,50 @@ impl MazeState {
         }
         best_action.unwrap()
     }
+
+    fn beam_search_action(&self, beam_width: usize, beam_depth: usize) -> usize {
+        let mut now_beam = BinaryHeap::new();
+        let mut best_state = None;
+
+        now_beam.push(self.clone());
+        for t in 0..beam_depth {
+            let mut next_beam = BinaryHeap::new();
+            for _ in 0..beam_width {
+                if let Some(now_state) = now_beam.pop() {
+                    let legal_actions = now_state.legal_actions();
+                    for action in legal_actions {
+                        let mut next_state = now_state.clone();
+                        next_state.advance(action);
+                        next_state.evaluate_score();
+                        if t == 0 {
+                            next_state.first_action = Some(action);
+                        }
+                        next_beam.push(next_state);
+                    }
+                }
+            }
+
+            now_beam = next_beam;
+            best_state = now_beam.peek();
+
+            if best_state.unwrap().is_done() {
+                break;
+            }
+        }
+        best_state.unwrap().first_action.unwrap()
+    }
+}
+
+impl PartialOrd for MazeState {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for MazeState {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.evaluated_score.cmp(&other.evaluated_score)
+    }
 }
 
 impl Display for MazeState {
@@ -155,7 +204,8 @@ fn test_ai_score(game_number: usize) -> f64 {
         let mut state = MazeState::from_seed(i as u64);
         while !state.is_done() {
             // state.advance(state.random_action()); // ランダム行動
-            state.advance(state.greedy_action()); // 貪欲法
+            // state.advance(state.greedy_action()); // 貪欲法
+            state.advance(state.beam_search_action(2, END_TURN)); // ビームサーチ
         }
         total_score += state.game_score;
     }
